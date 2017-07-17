@@ -3,6 +3,7 @@ package com.liniopay.android.tokenizer;
 import android.content.Context;
 import android.support.test.InstrumentationRegistry;
 import android.support.test.runner.AndroidJUnit4;
+import android.util.Log;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -46,5 +47,32 @@ public class TokenizerTest {
         catch(IllegalArgumentException iae) {
             //test passes
         }
+    }
+
+    @Test
+    public void emptyNameTest() {
+        ValidationResult result = tokenizer.validateName("", Constants.NameType.CreditCardHolderName);
+        Assert.assertFalse(result.isValid());
+    }
+
+    @Test
+    public void smallNameTest() {
+        ValidationResult result = tokenizer.validateName("a", Constants.NameType.CreditCardHolderName);
+        Assert.assertFalse(result.isValid());
+    }
+
+    @Test
+    public void normalNameTest() {
+        ValidationResult result = tokenizer.validateName("aasdfasfaasd sdafsdf asdf asdfsdf", Constants.NameType.CreditCardHolderName);
+        Assert.assertTrue(result.isValid());
+    }
+
+    @Test
+    public void longNameTest() {
+        ValidationResult result = tokenizer.validateName("aasdfasfaasdfasfaasdfasfaasdfasfaasdfasfaasdfasfaasdfasfaasdfasfaasdfasf " +
+                "aasdfasfaasdfasfaasdfasfaasdfasfaasdfasfaasdfasfaasdfasfaasdfasfaasdfasf" +
+                "aasdfasfaasdfasfaasdfasfaasdfasfaasdfasfaasdfasfaasdfasfaasdfasfaasdfasf" +
+                "aasdfasf", Constants.NameType.CreditCardHolderName);
+        Assert.assertFalse(result.isValid());
     }
 }

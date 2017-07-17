@@ -107,14 +107,14 @@ public class Constants {
     public static final String ERROR_DESC_INVALID_COUNTRY = "Invalid Country - Should Contain 3 Characters Country Code";
     public static final String ERROR_DESC_INVALID_POSTAL_CODE = "Invalid Postal Code - Should Contain Only Numeric Characters";
     public static final String ERROR_DESC_INVALID_EMAIL = "Invalid E-mail Address: %";
-    public static final String ERROR_DESC_CHAR_MAX_LIMIT_NAME = "Card Holder Name Should Have Less Than %lu Characters";
-    public static final String ERROR_DESC_CHAR_MAX_LIMIT_STREET_1 = "Address Street line 1 Should Have Less Than %lu Characters";
-    public static final String ERROR_DESC_CHAR_MAX_LIMIT_STREET_2 = "Address Street line 2 Should Have Less Than %lu Characters";
-    public static final String ERROR_DESC_CHAR_MAX_LIMIT_STREET_3 = "Address Street line 3 Should Have Less Than %lu Characters";
-    public static final String ERROR_DESC_CHAR_MAX_LIMIT_PHONE = "Phone Number Should Have Less Than %lu Characters";
-    public static final String ERROR_DESC_CHAR_MAX_LIMIT_CITY = "Address City Should Have Less Than %lu Characters";
-    public static final String ERROR_DESC_CHAR_MAX_LIMIT_STATE = "Address State Should Have Less Than %lu Characters";
-    public static final String ERROR_DESC_CHAR_MAX_LIMIT_COUNTY = "County Should Have Less Than %lu Characters";
-    public static final String ERROR_DESC_CHAR_MAX_LIMIT_POSTAL_CODE = "Address Postal Code Should Have Less Than %lu Characters";
-    public static final String ERROR_DESC_CHAR_MIN_LIMIT_NAME = "Card Holder Name Should Have More Than %lu Characters";
+    public static final String ERROR_DESC_CHAR_MAX_LIMIT_NAME = "Card Holder Name Should Have Less Than %d Characters";
+    public static final String ERROR_DESC_CHAR_MAX_LIMIT_STREET_1 = "Address Street line 1 Should Have Less Than %d Characters";
+    public static final String ERROR_DESC_CHAR_MAX_LIMIT_STREET_2 = "Address Street line 2 Should Have Less Than %d Characters";
+    public static final String ERROR_DESC_CHAR_MAX_LIMIT_STREET_3 = "Address Street line 3 Should Have Less Than %d Characters";
+    public static final String ERROR_DESC_CHAR_MAX_LIMIT_PHONE = "Phone Number Should Have Less Than %d Characters";
+    public static final String ERROR_DESC_CHAR_MAX_LIMIT_CITY = "Address City Should Have Less Than %d Characters";
+    public static final String ERROR_DESC_CHAR_MAX_LIMIT_STATE = "Address State Should Have Less Than %d Characters";
+    public static final String ERROR_DESC_CHAR_MAX_LIMIT_COUNTY = "County Should Have Less Than %d Characters";
+    public static final String ERROR_DESC_CHAR_MAX_LIMIT_POSTAL_CODE = "Address Postal Code Should Have Less Than %d Characters";
+    public static final String ERROR_DESC_CHAR_MIN_LIMIT_NAME = "Card Holder Name Should Have More Than %d Characters";
 }
