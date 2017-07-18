@@ -168,12 +168,12 @@ public class Tokenizer {
     }
 
     public ValidationResult validateExpirationDate(String month, String year) {
-        if(month == null || month.isEmpty()) {
+        if(month == null || month.trim().isEmpty()) {
             return new ValidationResult(false, new Error(Constants.ERROR_CODE_REQUIRED_MONTH,
                     Constants.ERROR_DOMAIN, Constants.ERROR_DESC_REQUIRED_MONTH));
         }
 
-        if(year == null || year.isEmpty()) {
+        if(year == null || year.trim().isEmpty()) {
             return new ValidationResult(false, new Error(Constants.ERROR_CODE_REQUIRED_YEAR,
                     Constants.ERROR_DOMAIN, Constants.ERROR_DESC_REQUIRED_YEAR));
         }
@@ -219,8 +219,23 @@ public class Tokenizer {
         return new ValidationResult(true, null);
     }
 
+    public ValidationResult validateAddressStreet1(String street1) {
+        if(street1 == null || street1.trim().isEmpty()) {
+            return new ValidationResult(false, new Error(Constants.ERROR_CODE_REQUIRED_STREET_1,
+                    Constants.ERROR_DOMAIN, Constants.ERROR_DESC_REQUIRED_STREET_1));
+        }
+
+        String trimmedStreet1 = street1.trim();
+
+        if(trimmedStreet1.length() > Constants.MAX_CHAR_STREET_1) {
+            return new ValidationResult(false, new Error(Constants.ERROR_CODE_CHAR_MAX_LIMIT_STREET_1,
+                    Constants.ERROR_DOMAIN, Constants.ERROR_DESC_CHAR_MAX_LIMIT_STREET_1));
+        }
+
+        return new ValidationResult(true, null);
+    }
+
 /*
-- (BOOL)validateExpDate:(NSString *)monthValue year:(NSString *)yearValue error:(NSError **)outError;
 - (BOOL)validateAddressStreet1:(NSString *)addressStreet1 error:(NSError **)outError;
 - (BOOL)validateOptionalAddressLine:(NSString *)addressLine type:(AddressLineType)lineType error:(NSError **)outError;
 - (BOOL)validateAddressCity:(NSString *)city error:(NSError **)outError;

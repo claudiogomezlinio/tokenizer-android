@@ -165,4 +165,24 @@ public class TokenizerTest {
         Assert.assertTrue(result1.isValid() && result2.isValid()
                 && result3.isValid() && result4.isValid());
     }
+
+    @Test
+    public void invalidStreet1() {
+        ValidationResult result1 = tokenizer.validateAddressStreet1("");
+        ValidationResult result2 = tokenizer.validateAddressStreet1("   ");
+
+        StringBuilder sb = new StringBuilder();
+        for(int i = 0; i < Constants.MAX_CHAR_STREET_1 + 10;i++) {
+            sb.append("Main St.");
+        }
+        ValidationResult result3 = tokenizer.validateAddressStreet1(sb.toString());
+
+        Assert.assertFalse(result1.isValid() || result2.isValid() || result3.isValid());
+    }
+
+    @Test
+    public void validStreet1() {
+        ValidationResult result1 = tokenizer.validateAddressStreet1("Main Street 123");
+        Assert.assertTrue(result1.isValid());
+    }
 }
