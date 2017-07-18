@@ -1,6 +1,7 @@
 package com.liniopay.android.tokenizer;
 
 import android.util.Log;
+import android.util.Patterns;
 
 import com.liniopay.android.tokenizer.util.LuhnChecker;
 
@@ -147,7 +148,7 @@ public class Tokenizer {
             String cardRegex = "^3[47]\\d+";
             Log.d(TAG, "Matching " + cardRegex + " against " + trimmedCCNumber);
 
-            if(Pattern.compile(cardRegex).matcher(trimmedCCNumber).matches()) {
+            if(Pattern.matches(cardRegex, trimmedCCNumber)) {
                 validCVCNumberLength = Constants.CHAR_LENGTH_CVC_AMEX;
             }
             else {
@@ -158,7 +159,7 @@ public class Tokenizer {
             String regex = String.format("\\d{%d}", validCVCNumberLength);
             Log.d(TAG, "Validating with regex " + regex +  " number " + trimmedCVCNumber);
 
-            if(!Pattern.compile(regex).matcher(trimmedCVCNumber).matches()) {
+            if(!Pattern.matches(regex, trimmedCVCNumber)) {
                 return new ValidationResult(false, new Error(Constants.ERROR_CODE_INVALID_CVC,
                         Constants.ERROR_DOMAIN, Constants.ERROR_DESC_INVALID_CVC));
             }
@@ -181,12 +182,12 @@ public class Tokenizer {
         month = month.trim();
         year = year.trim();
 
-        if(!Pattern.compile("^\\d{1,2}$").matcher(month).matches()) {
+        if(!Pattern.matches("^\\d{1,2}$", month)) {
             return new ValidationResult(false, new Error(Constants.ERROR_CODE_INVALID_MONTH,
                     Constants.ERROR_DOMAIN, Constants.ERROR_DESC_INVALID_MONTH + ": (" + month + ")"));
         }
 
-        if(!Pattern.compile("^\\d{4}$").matcher(year).matches()) {
+        if(!Pattern.matches("^\\d{4}$", year)) {
             return new ValidationResult(false, new Error(Constants.ERROR_CODE_INVALID_YEAR,
                     Constants.ERROR_DOMAIN, Constants.ERROR_DESC_INVALID_YEAR + ": (" + year + ")"));
         }
@@ -235,14 +236,120 @@ public class Tokenizer {
         return new ValidationResult(true, null);
     }
 
+    public ValidationResult validateOptionalAddressLine(String addressLine, Constants.AddressLineType lineType) {
+        // field is optional
+        if(addressLine != null && !addressLine.trim().isEmpty()) {
+            int maxCharacters = 0;
+            int errorCode = 0;
+            String errorString = "";
+
+            switch(lineType) {
+                case AddressStreet2:
+                    maxCharacters = Constants.MAX_CHAR_STREET_2;
+                    errorCode = Constants.ERROR_CODE_CHAR_MAX_LIMIT_STREET_2;
+                    errorString = Constants.ERROR_DESC_CHAR_MAX_LIMIT_STREET_2;
+                    break;
+                case AddressStreet3:
+                    maxCharacters = Constants.MAX_CHAR_STREET_3;
+                    errorCode = Constants.ERROR_CODE_CHAR_MAX_LIMIT_STREET_3;
+                    errorString = Constants.ERROR_DESC_CHAR_MAX_LIMIT_STREET_3;
+                    break;
+                case County:
+                    maxCharacters = Constants.MAX_CHAR_COUNTY;
+                    errorCode = Constants.ERROR_CODE_CHAR_MAX_LIMIT_COUNTY;
+                    errorString = Constants.ERROR_DESC_CHAR_MAX_LIMIT_COUNTY;
+                    break;
+                case Phone:
+                    maxCharacters = Constants.MAX_CHAR_PHONE;
+                    errorCode = Constants.ERROR_CODE_CHAR_MAX_LIMIT_PHONE;
+                    errorString = Constants.ERROR_DESC_CHAR_MAX_LIMIT_PHONE;
+                    break;
+            }
+
+            if (addressLine.length() > maxCharacters) {
+                return new ValidationResult(false, new Error(errorCode,
+                        Constants.ERROR_DOMAIN, errorString));
+            }
+        }
+        return new ValidationResult(true, null);
+    }
+
+    public ValidationResult validateAddressCity(String city) {
+        if(city == null || city.trim().isEmpty()) {
+            return new ValidationResult(false, new Error(Constants.ERROR_CODE_REQUIRED_CITY,
+                    Constants.ERROR_DOMAIN, Constants.ERROR_DESC_REQUIRED_CITY));
+        }
+
+        if(city.length() > Constants.MAX_CHAR_CITY) {
+            return new ValidationResult(false, new Error(Constants.ERROR_CODE_CHAR_MAX_LIMIT_CITY,
+                    Constants.ERROR_DOMAIN, String.format(Constants.ERROR_DESC_CHAR_MAX_LIMIT_CITY, Constants.MAX_CHAR_CITY)));
+        }
+
+        return new ValidationResult(true, null);
+    }
+
+    public ValidationResult validateAddressState(String state) {
+        if(state == null || state.trim().isEmpty()) {
+            return new ValidationResult(false, new Error(Constants.ERROR_CODE_REQUIRED_STATE,
+                    Constants.ERROR_DOMAIN, Constants.ERROR_DESC_REQUIRED_STATE));
+        }
+
+        if(state.length() > Constants.MAX_CHAR_STATE) {
+            return new ValidationResult(false, new Error(Constants.ERROR_CODE_CHAR_MAX_LIMIT_STATE,
+                    Constants.ERROR_DOMAIN, String.format(Constants.ERROR_DESC_CHAR_MAX_LIMIT_STATE, Constants.MAX_CHAR_STATE)));
+        }
+
+        return new ValidationResult(true, null);
+    }
+
+    public ValidationResult validateAddressCountry(String country) {
+        if(country == null || country.trim().isEmpty()) {
+            return new ValidationResult(false, new Error(Constants.ERROR_CODE_REQUIRED_COUNTRY,
+                    Constants.ERROR_DOMAIN, Constants.ERROR_DESC_REQUIRED_COUNTRY));
+        }
+
+        if(!Pattern.matches(String.format("^[\\sA-Za-z]{%d}$", Constants.CHAR_LENGTH_COUNTRY), country)) {
+            return new ValidationResult(false, new Error(Constants.ERROR_CODE_INVALID_COUNTRY,
+                    Constants.ERROR_DOMAIN, Constants.ERROR_DESC_INVALID_COUNTRY));
+        }
+
+        return new ValidationResult(true, null);
+    }
+
+    public ValidationResult validateAddressPostalCode(String postalCode) {
+        if(postalCode == null || postalCode.trim().isEmpty()) {
+            return new ValidationResult(false, new Error(Constants.ERROR_CODE_REQUIRED_POSTAL_CODE,
+                    Constants.ERROR_DOMAIN, Constants.ERROR_DESC_REQUIRED_POSTAL_CODE));
+        }
+
+        String trimmedPostalCode = postalCode.trim();
+
+        if(trimmedPostalCode.length() > Constants.MAX_CHAR_POSTAL_CODE) {
+            return new ValidationResult(false, new Error(Constants.ERROR_CODE_CHAR_MAX_LIMIT_POSTAL_CODE,
+                    Constants.ERROR_DOMAIN, String.format(Constants.ERROR_DESC_CHAR_MAX_LIMIT_POSTAL_CODE,
+                    Constants.MAX_CHAR_POSTAL_CODE)));
+        }
+
+        if(!Pattern.matches("^\\d+$", postalCode)) {
+            return new ValidationResult(false, new Error(Constants.ERROR_CODE_INVALID_POSTAL_CODE,
+                    Constants.ERROR_DOMAIN, Constants.ERROR_DESC_INVALID_POSTAL_CODE));
+        }
+
+        return new ValidationResult(true, null);
+    }
+
+    public ValidationResult validateEmail(String email) {
+        if(email != null && !email.trim().isEmpty()) {
+            if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                return new ValidationResult(false, new Error(Constants.ERROR_CODE_INVALID_EMAIL,
+                        Constants.ERROR_DOMAIN, Constants.ERROR_DESC_INVALID_EMAIL));
+            }
+        }
+
+        return new ValidationResult(true, null);
+    }
+
 /*
-- (BOOL)validateAddressStreet1:(NSString *)addressStreet1 error:(NSError **)outError;
-- (BOOL)validateOptionalAddressLine:(NSString *)addressLine type:(AddressLineType)lineType error:(NSError **)outError;
-- (BOOL)validateAddressCity:(NSString *)city error:(NSError **)outError;
-- (BOOL)validateAddressState:(NSString *)state error:(NSError **)outError;
-- (BOOL)validateAddressCountry:(NSString *)country error:(NSError **)outError;
-- (BOOL)validateAddressPostalCode:(NSString *)postalCode error:(NSError **)outError;
-- (BOOL)validateEmail:(NSString*)email error:(NSError **)outError;
 - (void)requestToken:(NSDictionary *)formValues oneTime:(BOOL)oneTime completion:(void (^)(NSDictionary* data, NSError* error))c
 */
 }
