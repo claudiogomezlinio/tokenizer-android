@@ -122,8 +122,48 @@ public class Tokenizer {
         return new ValidationResult(true, null);
     }
 
+    public ValidationResult validateCVC(String cvcNumber, String cardNumber) {
+        // Field is optional
+        if (cvcNumber != null && cardNumber != null) {
+            String trimmedCVCNumber = cvcNumber.trim();
+            String trimmedCCNumber = cardNumber.trim();
+            int validCVCNumberLength = Constants.CHAR_LENGTH_CVC;
+
+            if(trimmedCCNumber.isEmpty()) {
+                return new ValidationResult(false, new Error(Constants.ERROR_CODE_INVALID_CARD_NUMBER,
+                        Constants.ERROR_DOMAIN, Constants.ERROR_DESC_INVALID_CARD_NUMBER));
+            }
+
+            if(trimmedCVCNumber.isEmpty()) {
+                return new ValidationResult(false, new Error(Constants.ERROR_CODE_INVALID_CVC,
+                        Constants.ERROR_DOMAIN, Constants.ERROR_DESC_INVALID_CVC));
+            }
+
+            // If card Type Amex expect 4 digits CVC number
+            String cardRegex = "^3[47]\\d+";
+            Log.d(TAG, "Matching " + cardRegex + " against " + trimmedCCNumber);
+
+            if(Pattern.compile(cardRegex).matcher(trimmedCCNumber).matches()) {
+                validCVCNumberLength = Constants.CHAR_LENGTH_CVC_AMEX;
+            }
+            else {
+                Log.d(TAG, "Did not match");
+            }
+
+            // validate cvc
+            String regex = String.format("\\d{%d}", validCVCNumberLength);
+            Log.d(TAG, "Validating with regex " + regex +  " number " + trimmedCVCNumber);
+
+            if(!Pattern.compile(regex).matcher(trimmedCVCNumber).matches()) {
+                return new ValidationResult(false, new Error(Constants.ERROR_CODE_INVALID_CVC,
+                        Constants.ERROR_DOMAIN, Constants.ERROR_DESC_INVALID_CVC));
+            }
+        }
+
+        return new ValidationResult(true, null);
+    }
+
 /*
-- (BOOL)validateCVC:(NSString *)cvcNumber card:(NSString *)cardNumber error:(NSError **)outError;
 - (BOOL)validateExpDate:(NSString *)monthValue year:(NSString *)yearValue error:(NSError **)outError;
 - (BOOL)validateAddressStreet1:(NSString *)addressStreet1 error:(NSError **)outError;
 - (BOOL)validateOptionalAddressLine:(NSString *)addressLine type:(AddressLineType)lineType error:(NSError **)outError;

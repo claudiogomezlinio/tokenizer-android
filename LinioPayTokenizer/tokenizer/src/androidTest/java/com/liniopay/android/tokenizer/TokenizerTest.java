@@ -99,4 +99,28 @@ public class TokenizerTest {
         ValidationResult result = tokenizer.validateCreditCardNumber("4111111111111111");
         Assert.assertTrue(result.isValid());
     }
+
+    @Test
+    public void emptyCVCTest() {
+        ValidationResult result = tokenizer.validateCVC("", "");
+        Assert.assertFalse(result.isValid());
+    }
+
+    @Test
+    public void invalidCVCTest() {
+        ValidationResult result = tokenizer.validateCVC("1", "4111111111111111");
+        Assert.assertFalse(result.isValid());
+    }
+
+    @Test
+    public void validAmexCVCTest() {
+        ValidationResult result = tokenizer.validateCVC("1234", "378734493671000");
+        Assert.assertTrue(result.isValid());
+    }
+
+    @Test
+    public void validCVCTest() {
+        ValidationResult result = tokenizer.validateCVC("123", "4111111111111111");
+        Assert.assertTrue(result.isValid());
+    }
 }
