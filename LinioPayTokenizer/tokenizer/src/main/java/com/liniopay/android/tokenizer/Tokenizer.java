@@ -1,15 +1,31 @@
 package com.liniopay.android.tokenizer;
 
+import android.content.Context;
 import android.util.Log;
 import android.util.Patterns;
 
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.VolleyLog;
+import com.android.volley.toolbox.JsonObjectRequest;
+import com.google.gson.Gson;
+import com.liniopay.android.tokenizer.util.APIRequestCreator;
 import com.liniopay.android.tokenizer.util.LuhnChecker;
+import com.liniopay.android.tokenizer.util.VolleySingleton;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -23,7 +39,7 @@ public class Tokenizer {
 
     /* Instance fields */
     private String apiKey = null;
-    private APIListener listener = null;
+    private Context context = null;
 
     /**
      * Tokenizer constructor.
@@ -31,9 +47,16 @@ public class Tokenizer {
      * @param apiKey API key retrieved from Linio Pay console
      * @param listener Listener for the results of the API calls
      */
-    public Tokenizer(String apiKey, APIListener listener) {
+    public Tokenizer(String apiKey, Context context) {
+        if(context == null) {
+            Log.e(TAG, "Context is null, can't construct class");
+            throw new IllegalArgumentException("Null context not allowed");
+        }
+        else {
+            this.context = context;
+        }
+
         //validate arguments
-        if(listener == null) throw new IllegalArgumentException("listener cannot be null");
         ValidationResult result = this.validateKey(apiKey);
 
         if(!result.isValid()) {
@@ -42,7 +65,6 @@ public class Tokenizer {
 
         //save values
         this.apiKey = apiKey;
-        this.listener = listener;
     }
 
     /**
@@ -349,7 +371,117 @@ public class Tokenizer {
         return new ValidationResult(true, null);
     }
 
-/*
-- (void)requestToken:(NSDictionary *)formValues oneTime:(BOOL)oneTime completion:(void (^)(NSDictionary* data, NSError* error))c
-*/
+    public void requestToken(RequestData request, boolean oneTime, final APIResponseHandler responseHandler) {
+        if(request == null || request.getFormValues() == null) {
+            throw new IllegalArgumentException("Form values cannot be null");
+        }
+
+        ArrayList<Error> errorArrayList = new ArrayList<>();
+        ValidationResult result = null;
+
+        // hash maps with the data
+        HashMap<String, String> formValues = request.getFormValues();
+        HashMap<String, String> address = request.getAddress();
+
+        // validate name
+        result = this.validateName(formValues.get(Constants.FORM_DICT_KEY_NAME),
+                                    Constants.NameType.CreditCardHolderName);
+        addErrorMessageIfValidationFailed(result, errorArrayList);
+
+        // validate credit card number
+        result = this.validateCreditCardNumber(formValues.get(Constants.FORM_DICT_KEY_NUMBER));
+        addErrorMessageIfValidationFailed(result, errorArrayList);
+
+        // validate expiration date
+        result = this.validateExpirationDate(formValues.get(Constants.FORM_DICT_KEY_MONTH),
+                                             formValues.get(Constants.FORM_DICT_KEY_YEAR));
+        addErrorMessageIfValidationFailed(result, errorArrayList);
+
+        // address is always optional so we check first
+        if(address != null) {
+            // first name
+            result = this.validateName(address.get(Constants.FORM_DICT_KEY_ADDRESS_FIRST_NAME), Constants.NameType.AddressFirstName);
+            addErrorMessageIfValidationFailed(result, errorArrayList);
+
+            // last name
+            result = this.validateName(address.get(Constants.FORM_DICT_KEY_ADDRESS_LAST_NAME), Constants.NameType.AddressLastName);
+            addErrorMessageIfValidationFailed(result, errorArrayList);
+
+            // street 1
+            result = this.validateAddressStreet1(address.get(Constants.FORM_DICT_KEY_STREET_1));
+            addErrorMessageIfValidationFailed(result, errorArrayList);
+
+            // street 2
+            result = this.validateOptionalAddressLine(address.get(Constants.FORM_DICT_KEY_STREET_2), Constants.AddressLineType.AddressStreet2);
+            addErrorMessageIfValidationFailed(result, errorArrayList);
+
+            // street 3
+            result = this.validateOptionalAddressLine(address.get(Constants.FORM_DICT_KEY_STREET_3), Constants.AddressLineType.AddressStreet3);
+            addErrorMessageIfValidationFailed(result, errorArrayList);
+
+            // phone
+            result = this.validateOptionalAddressLine(address.get(Constants.FORM_DICT_KEY_PHONE), Constants.AddressLineType.Phone);
+            addErrorMessageIfValidationFailed(result, errorArrayList);
+
+            // county
+            result = this.validateOptionalAddressLine(address.get(Constants.FORM_DICT_KEY_COUNTY), Constants.AddressLineType.County);
+            addErrorMessageIfValidationFailed(result, errorArrayList);
+
+            // city
+            result = this.validateAddressCity(address.get(Constants.FORM_DICT_KEY_CITY));
+            addErrorMessageIfValidationFailed(result, errorArrayList);
+
+            // state
+            result = this.validateAddressState(address.get(Constants.FORM_DICT_KEY_STATE));
+            addErrorMessageIfValidationFailed(result, errorArrayList);
+
+            // country
+            result = this.validateAddressCountry(address.get(Constants.FORM_DICT_KEY_COUNTRY));
+            addErrorMessageIfValidationFailed(result, errorArrayList);
+
+            // postal code
+            result = this.validateAddressPostalCode(address.get(Constants.FORM_DICT_KEY_POSTAL_CODE));
+            addErrorMessageIfValidationFailed(result, errorArrayList);
+
+            // email
+            result = this.validateEmail(address.get(Constants.FORM_DICT_KEY_EMAIL));
+            addErrorMessageIfValidationFailed(result, errorArrayList);
+        }
+
+        // if there are failed validations, notify handler and leave
+        if(!errorArrayList.isEmpty()) {
+            responseHandler.onValidationFailure(errorArrayList);
+        }
+        else {
+            // let's make the actual request
+            RequestQueue queue = VolleySingleton.getInstance(context).getRequestQueue();
+            JSONObject jsonObject = new JSONObject(APIRequestCreator.createAPIRequest(this.apiKey, request, oneTime));
+
+            // contact the LinioPay endpoint
+            JsonObjectRequest req = new JsonObjectRequest(Constants.LPTS_API_PATH, jsonObject,
+                    new Response.Listener<JSONObject>() {
+                        @Override
+                        public void onResponse(JSONObject response) {
+                            String jsonBody = response.toString();
+                            HashMap<Object, Object> responseData = new Gson().fromJson(jsonBody, HashMap.class);
+                            responseHandler.onRequestSuccess(responseData);
+                        }
+                    }, new Response.ErrorListener() {
+                @Override
+                public void onErrorResponse(VolleyError error) {
+                    Log.e(TAG, error.getMessage());
+                    responseHandler.onRequestFailure(new Exception(error.getMessage(), error.getCause()));
+                }
+            });
+
+            // Add the request to the RequestQueue.
+            queue.add(req);
+        }
+    }
+
+    private void addErrorMessageIfValidationFailed(ValidationResult result, ArrayList<Error> errorList) {
+        if(!result.isValid()) {
+            errorList.add(result.getError());
+        }
+    }
 }

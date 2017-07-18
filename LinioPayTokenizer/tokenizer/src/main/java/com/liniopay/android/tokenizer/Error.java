@@ -27,4 +27,13 @@ public class Error {
     public String getMessage() {
         return message;
     }
+
+    @Override
+    public String toString() {
+        return "Error{" +
+                "code=" + code +
+                ", domain='" + domain + '\'' +
+                ", message='" + message + '\'' +
+                '}';
+    }
 }

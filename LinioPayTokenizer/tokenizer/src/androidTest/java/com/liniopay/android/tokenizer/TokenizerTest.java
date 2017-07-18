@@ -1,6 +1,5 @@
 package com.liniopay.android.tokenizer;
 
-import android.content.Context;
 import android.support.test.InstrumentationRegistry;
 import android.support.test.runner.AndroidJUnit4;
 import android.util.Log;
@@ -11,7 +10,9 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import static org.junit.Assert.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Instrumentation test, which will execute on an Android device.
@@ -21,11 +22,12 @@ import static org.junit.Assert.*;
 @RunWith(AndroidJUnit4.class)
 public class TokenizerTest {
 
+    private static final String TAG = TokenizerTest.class.getSimpleName();
     private Tokenizer tokenizer = null;
 
     @Before
     public void setUp() {
-        tokenizer = new Tokenizer("test_20e3ec8c5ce9bb5adced9b8abe297929684", new APIListener());
+        tokenizer = new Tokenizer("test_20e3ec8c5ce9bb5adced9b8abe297929684", InstrumentationRegistry.getTargetContext());
     }
 
     @After
@@ -41,7 +43,7 @@ public class TokenizerTest {
     @Test
     public void invalidKeyTest() throws Exception {
         try {
-            Tokenizer invalidTokenizer = new Tokenizer("asdfasdf", new APIListener());
+            Tokenizer invalidTokenizer = new Tokenizer("asdfasdf", InstrumentationRegistry.getContext());
             Assert.fail("Invalid key accepted");
         }
         catch(IllegalArgumentException iae) {
@@ -257,7 +259,7 @@ public class TokenizerTest {
 
     @Test
     public void validCountryTest() {
-        ValidationResult result1 = tokenizer.validateAddressState("United States");
+        ValidationResult result1 = tokenizer.validateAddressCountry("US");
         Assert.assertTrue(result1.isValid());
     }
 
@@ -290,5 +292,171 @@ public class TokenizerTest {
         ValidationResult result2 = tokenizer.validateEmail("");
         ValidationResult result3 = tokenizer.validateEmail("test@liniopay.com");
         Assert.assertTrue(result1.isValid() && result2.isValid() && result3.isValid());
+    }
+
+    @Test
+    public void emptyRequestTest() {
+        HashMap<String, String> formValues = new HashMap<>();
+        RequestData data = new RequestData(formValues, null);
+
+        tokenizer.requestToken(data, true, new APIResponseHandler() {
+            @Override
+            public void onValidationFailure(ArrayList<Error> errorArrayList) {
+                Assert.assertTrue(errorArrayList.size() == 3); // cc holder name, cc number, expiration
+            }
+
+            @Override
+            public void onRequestFailure(Exception e) {
+
+            }
+
+            @Override
+            public void onRequestSuccess(Map<Object, Object> responseData) {
+
+            }
+        });
+    }
+
+    @Test
+    public void minimalRequestTest() {
+        HashMap<String, String> formValues = new HashMap<>();
+
+        // fill up request
+        formValues.put(Constants.FORM_DICT_KEY_NAME, "Linio Pay");
+        formValues.put(Constants.FORM_DICT_KEY_NUMBER, "4111111111111111");
+        formValues.put(Constants.FORM_DICT_KEY_MONTH, "1");
+        formValues.put(Constants.FORM_DICT_KEY_YEAR, "2020");
+
+        RequestData data = new RequestData(formValues, null);
+
+        // now wait for last year
+        final Object lock = new Object();
+
+        tokenizer.requestToken(data, true, new APIResponseHandler() {
+            @Override
+            public void onValidationFailure(ArrayList<Error> errorArrayList) {
+                Assert.fail("There shouldn't be any failures here");
+            }
+
+            @Override
+            public void onRequestFailure(Exception e) {
+                Assert.fail("There shouldn't be any failures here");
+            }
+
+            @Override
+            public void onRequestSuccess(Map<Object, Object> responseData) {
+                Assert.assertNotNull(responseData);
+                Assert.assertNotNull(responseData.get("token_id"));
+                Log.d(TAG, "Unlocking thread, response " + responseData);
+                synchronized (lock) {
+                    lock.notifyAll();
+                }
+            }
+        });
+
+        try {
+            synchronized (lock) {
+                lock.wait();
+            }
+        }
+        catch(Exception e) {
+            Log.e(TAG, e.getLocalizedMessage());
+        }
+    }
+
+    @Test
+    public void minimalRequestIncompleteAddressTest() {
+        HashMap<String, String> formValues = new HashMap<>();
+
+        // fill up request
+        formValues.put(Constants.FORM_DICT_KEY_NAME, "Linio Pay");
+        formValues.put(Constants.FORM_DICT_KEY_NUMBER, "4111111111111111");
+        formValues.put(Constants.FORM_DICT_KEY_MONTH, "1");
+        formValues.put(Constants.FORM_DICT_KEY_YEAR, "2020");
+
+        HashMap<String, String> address = new HashMap<>();
+
+        // fill up request
+        address.put(Constants.FORM_DICT_KEY_ADDRESS_FIRST_NAME, "Linio");
+
+        RequestData data = new RequestData(formValues, address);
+
+        tokenizer.requestToken(data, true, new APIResponseHandler() {
+            @Override
+            public void onValidationFailure(ArrayList<Error> errorArrayList) {
+                // first name, last name, street1, city, state, country, postal code
+                Log.d(TAG, errorArrayList.toString());
+                Assert.assertTrue(errorArrayList.size() == 6);
+            }
+
+            @Override
+            public void onRequestFailure(Exception e) {
+
+            }
+
+            @Override
+            public void onRequestSuccess(Map<Object, Object> responseData) {
+
+            }
+        });
+    }
+
+    @Test
+    public void minimalRequestMinimalAddressTest() {
+        HashMap<String, String> formValues = new HashMap<>();
+
+        // fill up request
+        formValues.put(Constants.FORM_DICT_KEY_NAME, "Linio Pay");
+        formValues.put(Constants.FORM_DICT_KEY_NUMBER, "4111111111111111");
+        formValues.put(Constants.FORM_DICT_KEY_MONTH, "1");
+        formValues.put(Constants.FORM_DICT_KEY_YEAR, "2020");
+
+        HashMap<String, String> address = new HashMap<>();
+
+        // fill up request
+        address.put(Constants.FORM_DICT_KEY_ADDRESS_FIRST_NAME, "Linio");
+        address.put(Constants.FORM_DICT_KEY_ADDRESS_LAST_NAME, "Payer");
+        address.put(Constants.FORM_DICT_KEY_STREET_1, "3400 Main Street");
+        address.put(Constants.FORM_DICT_KEY_CITY, "Guadalajara");
+        address.put(Constants.FORM_DICT_KEY_STATE, "Guadalajara");
+        address.put(Constants.FORM_DICT_KEY_COUNTRY, "US");
+        address.put(Constants.FORM_DICT_KEY_POSTAL_CODE, "33180");
+
+        RequestData data = new RequestData(formValues, address);
+
+        // now wait for async request
+        final Object lock = new Object();
+
+        tokenizer.requestToken(data, true, new APIResponseHandler() {
+            @Override
+            public void onValidationFailure(ArrayList<Error> errorArrayList) {
+                Log.d(TAG, errorArrayList.toString());
+                Assert.fail("There shouldn't be any failures here");
+            }
+
+            @Override
+            public void onRequestFailure(Exception e) {
+                Assert.fail("There shouldn't be any failures here");
+            }
+
+            @Override
+            public void onRequestSuccess(Map<Object, Object> responseData) {
+                Assert.assertNotNull(responseData);
+                Assert.assertNotNull(responseData.get("token_id"));
+                Log.d(TAG, "Unlocking thread, response " + responseData);
+                synchronized (lock) {
+                    lock.notifyAll();
+                }
+            }
+        });
+
+        try {
+            synchronized (lock) {
+                lock.wait();
+            }
+        }
+        catch(Exception e) {
+            Log.e(TAG, e.getLocalizedMessage());
+        }
     }
 }

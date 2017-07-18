@@ -104,7 +104,7 @@ public class Constants {
     public static final String ERROR_DESC_INVALID_MONTH = "Invalid Expiration Month - Should Contain 2 Numeric Characters";
     public static final String ERROR_DESC_INVALID_YEAR = "Invalid Expiration Year - Should Contain 4 Numeric Characters";
     public static final String ERROR_DESC_INVALID_EXPIRATION = "Invalid Expiration date - Should Containt Current or Future Date";
-    public static final String ERROR_DESC_INVALID_COUNTRY = "Invalid Country - Should Contain 3 Characters Country Code";
+    public static final String ERROR_DESC_INVALID_COUNTRY = "Invalid Country - Should Contain 2 Characters Country Code";
     public static final String ERROR_DESC_INVALID_POSTAL_CODE = "Invalid Postal Code - Should Contain Only Numeric Characters";
     public static final String ERROR_DESC_INVALID_EMAIL = "Invalid E-mail Address: %";
     public static final String ERROR_DESC_CHAR_MAX_LIMIT_NAME = "Card Holder Name Should Have Less Than %d Characters";
