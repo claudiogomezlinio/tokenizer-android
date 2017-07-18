@@ -123,4 +123,46 @@ public class TokenizerTest {
         ValidationResult result = tokenizer.validateCVC("123", "4111111111111111");
         Assert.assertTrue(result.isValid());
     }
+
+    @Test
+    public void invalidExpirationMonthTest() {
+        ValidationResult result1 = tokenizer.validateExpirationDate(null, "2010");
+        ValidationResult result2 = tokenizer.validateExpirationDate("", "2010");
+        ValidationResult result3 = tokenizer.validateExpirationDate("13", "2010");
+        ValidationResult result4 = tokenizer.validateExpirationDate("0", "2010");
+
+        Assert.assertFalse(result1.isValid() || result2.isValid()
+                || result3.isValid() || result4.isValid());
+    }
+
+    @Test
+    public void invalidExpirationYearTest() {
+        ValidationResult result1 = tokenizer.validateExpirationDate("01", "");
+        ValidationResult result2 = tokenizer.validateExpirationDate("01", null);
+        ValidationResult result3 = tokenizer.validateExpirationDate("01", "-305");
+
+        Assert.assertFalse(result1.isValid() || result2.isValid() || result3.isValid());
+    }
+
+    @Test
+    public void invalidExpirationDateTest() {
+        ValidationResult result1 = tokenizer.validateExpirationDate("01", "2010");
+        ValidationResult result2 = tokenizer.validateExpirationDate("1", "2010");
+        ValidationResult result3 = tokenizer.validateExpirationDate("6", "2017");
+        ValidationResult result4 = tokenizer.validateExpirationDate("13", "2017");
+
+        Assert.assertFalse(result1.isValid() || result2.isValid()
+                || result3.isValid() || result4.isValid());
+    }
+
+    @Test
+    public void validExpirationDateTest() {
+        ValidationResult result1 = tokenizer.validateExpirationDate("1", "2025");
+        ValidationResult result2 = tokenizer.validateExpirationDate("03", "2020");
+        ValidationResult result3 = tokenizer.validateExpirationDate("7", "2017");
+        ValidationResult result4 = tokenizer.validateExpirationDate("8", "2027");
+
+        Assert.assertTrue(result1.isValid() && result2.isValid()
+                && result3.isValid() && result4.isValid());
+    }
 }

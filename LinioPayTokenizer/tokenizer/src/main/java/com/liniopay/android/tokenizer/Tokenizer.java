@@ -4,6 +4,10 @@ import android.util.Log;
 
 import com.liniopay.android.tokenizer.util.LuhnChecker;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -158,6 +162,58 @@ public class Tokenizer {
                 return new ValidationResult(false, new Error(Constants.ERROR_CODE_INVALID_CVC,
                         Constants.ERROR_DOMAIN, Constants.ERROR_DESC_INVALID_CVC));
             }
+        }
+
+        return new ValidationResult(true, null);
+    }
+
+    public ValidationResult validateExpirationDate(String month, String year) {
+        if(month == null || month.isEmpty()) {
+            return new ValidationResult(false, new Error(Constants.ERROR_CODE_REQUIRED_MONTH,
+                    Constants.ERROR_DOMAIN, Constants.ERROR_DESC_REQUIRED_MONTH));
+        }
+
+        if(year == null || year.isEmpty()) {
+            return new ValidationResult(false, new Error(Constants.ERROR_CODE_REQUIRED_YEAR,
+                    Constants.ERROR_DOMAIN, Constants.ERROR_DESC_REQUIRED_YEAR));
+        }
+
+        month = month.trim();
+        year = year.trim();
+
+        if(!Pattern.compile("^\\d{1,2}$").matcher(month).matches()) {
+            return new ValidationResult(false, new Error(Constants.ERROR_CODE_INVALID_MONTH,
+                    Constants.ERROR_DOMAIN, Constants.ERROR_DESC_INVALID_MONTH + ": (" + month + ")"));
+        }
+
+        if(!Pattern.compile("^\\d{4}$").matcher(year).matches()) {
+            return new ValidationResult(false, new Error(Constants.ERROR_CODE_INVALID_YEAR,
+                    Constants.ERROR_DOMAIN, Constants.ERROR_DESC_INVALID_YEAR + ": (" + year + ")"));
+        }
+
+        // now check validity of the date
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("dd-MM-yyyy");
+        simpleDateFormat.setLenient(false);
+
+        try {
+            int dayOfMonth = Calendar.getInstance().get(Calendar.DAY_OF_MONTH);
+            int todayMonth = Calendar.getInstance().get(Calendar.MONTH) + 1; //this crap is 0-based
+            int todayYear = Calendar.getInstance().get(Calendar.YEAR);
+            Date expiration = simpleDateFormat.parse(dayOfMonth + "-" + month + "-" + year);
+            Date todayAtMidnight = simpleDateFormat.parse(dayOfMonth + "-" + todayMonth + "-" + todayYear);
+
+            Log.d(TAG, "expiration is " + expiration + ", today is " + todayAtMidnight);
+
+            if(expiration.before(todayAtMidnight)) {
+                Log.e(TAG, "Date " + expiration + " is before " + todayAtMidnight);
+                return new ValidationResult(false, new Error(Constants.ERROR_CODE_INVALID_EXPIRATION,
+                        Constants.ERROR_DOMAIN, Constants.ERROR_DESC_INVALID_EXPIRATION));
+            }
+        }
+        catch(ParseException e) {
+            Log.e(TAG, e.getLocalizedMessage());
+            return new ValidationResult(false, new Error(Constants.ERROR_CODE_INVALID_EXPIRATION,
+                    Constants.ERROR_DOMAIN, Constants.ERROR_DESC_INVALID_EXPIRATION));
         }
 
         return new ValidationResult(true, null);
