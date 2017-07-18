@@ -2,6 +2,8 @@ package com.liniopay.android.tokenizer;
 
 import android.util.Log;
 
+import com.liniopay.android.tokenizer.util.LuhnChecker;
+
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -103,9 +105,24 @@ public class Tokenizer {
         return new ValidationResult(true, null);
     }
 
+    public ValidationResult validateCreditCardNumber(String cardNumber) {
+        if(cardNumber == null || cardNumber.trim().isEmpty()) {
+            return new ValidationResult(false, new Error(Constants.ERROR_CODE_REQUIRED_CARD_NUMBER,
+                    Constants.ERROR_DOMAIN, Constants.ERROR_DESC_REQUIRED_CARD_NUMBER));
+        }
+
+        //luhn check
+        boolean valid = LuhnChecker.check(cardNumber);
+
+        if(!valid) {
+            return new ValidationResult(false, new Error(Constants.ERROR_CODE_INVALID_CARD_NUMBER,
+                    Constants.ERROR_DOMAIN, Constants.ERROR_DESC_INVALID_CARD_NUMBER));
+        }
+
+        return new ValidationResult(true, null);
+    }
+
 /*
-- (BOOL)validateName:(NSString*)name type:(NameType)nameType error:(NSError **)outError;
-- (BOOL)validateNumber:(NSString *)cardNumber error:(NSError **)outError;
 - (BOOL)validateCVC:(NSString *)cvcNumber card:(NSString *)cardNumber error:(NSError **)outError;
 - (BOOL)validateExpDate:(NSString *)monthValue year:(NSString *)yearValue error:(NSError **)outError;
 - (BOOL)validateAddressStreet1:(NSString *)addressStreet1 error:(NSError **)outError;

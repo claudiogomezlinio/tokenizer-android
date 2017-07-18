@@ -75,4 +75,28 @@ public class TokenizerTest {
                 "aasdfasf", Constants.NameType.CreditCardHolderName);
         Assert.assertFalse(result.isValid());
     }
+
+    @Test
+    public void emptyCCTest() {
+        ValidationResult result = tokenizer.validateCreditCardNumber("");
+        Assert.assertFalse(result.isValid());
+    }
+
+    @Test
+    public void invalidCCTest() {
+        ValidationResult result = tokenizer.validateCreditCardNumber("");
+        Assert.assertFalse(result.isValid());
+    }
+
+    @Test
+    public void validAmexCCTest() {
+        ValidationResult result = tokenizer.validateCreditCardNumber("378734493671000");
+        Assert.assertTrue(result.isValid());
+    }
+
+    @Test
+    public void validCCTest() {
+        ValidationResult result = tokenizer.validateCreditCardNumber("4111111111111111");
+        Assert.assertTrue(result.isValid());
+    }
 }
