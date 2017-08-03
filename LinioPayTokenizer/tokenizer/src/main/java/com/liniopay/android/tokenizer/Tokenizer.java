@@ -67,16 +67,6 @@ public class Tokenizer {
         this.apiKey = apiKey;
     }
 
-    /**
-     * Requests a token from LinioPay for a given credit card.
-     *
-     * @param values Credit card data.
-     * @param oneTime true for a one-time token, false for a multi-use token.
-     */
-    public void requestToken(Map<String, String> values, boolean oneTime) {
-
-    }
-
     public ValidationResult validateKey(String key) {
         if(key == null || key.trim().isEmpty()) {
             return new ValidationResult(false, new Error(Constants.ERROR_CODE_REQUIRED_KEY,
