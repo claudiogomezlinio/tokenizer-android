@@ -1,9 +1,9 @@
 package com.liniopay.android.tokenizer.util;
 
-import android.util.Log;
-
-import com.liniopay.android.tokenizer.Constants;
 import com.liniopay.android.tokenizer.RequestData;
+import com.liniopay.android.tokenizer.models.PaymentMethods;
+import com.liniopay.android.tokenizer.models.TokenModel;
+import com.liniopay.android.tokenizer.models.TokenRequestModel;
 
 import java.util.HashMap;
 
@@ -13,29 +13,16 @@ import java.util.HashMap;
 
 public class APIRequestCreator {
 
-    public static HashMap<Object, Object> createAPIRequest(String apiKey, RequestData requestData, boolean oneTime) {
-        // convert to json
+    public static TokenRequestModel createAPIRequest(String apiKey, RequestData requestData, boolean oneTime) {
         HashMap<Object, Object> chargeCardMap = new HashMap<>();
+        // Adds charge cards info
         chargeCardMap.putAll(requestData.getFormValues());
-
-        if(requestData.getAddress() != null) {
+        // If has address data add to
+        if (requestData.getAddress() != null) {
             chargeCardMap.put("address", requestData.getAddress());
         }
-
-        // paymenet method element
-        HashMap<Object, Object> paymentMethodMap = new HashMap<>(); // payment method
-        paymentMethodMap.put("charge_card", chargeCardMap);
-
-        // token element
-        HashMap<Object, Object> tokenMap = new HashMap<>(); // root object
-        tokenMap.put("one_time", Boolean.valueOf(oneTime));
-        tokenMap.put("payment_method", paymentMethodMap);
-
-        // root element
-        HashMap<Object, Object> rootMap = new HashMap<>(); // root object
-        rootMap.put("tokenization_key", apiKey);
-        rootMap.put("token", tokenMap);
-
-        return rootMap;
+        // Return build model
+        return new TokenRequestModel(new TokenModel(oneTime, new PaymentMethods(chargeCardMap)), apiKey);
     }
+
 }

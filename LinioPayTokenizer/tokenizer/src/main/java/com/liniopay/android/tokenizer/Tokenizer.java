@@ -4,30 +4,28 @@ import android.content.Context;
 import android.util.Log;
 import android.util.Patterns;
 
-import com.android.volley.RequestQueue;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.VolleyLog;
-import com.android.volley.toolbox.JsonObjectRequest;
-import com.google.gson.Gson;
+import com.liniopay.android.tokenizer.models.TokenRequestModel;
 import com.liniopay.android.tokenizer.util.APIRequestCreator;
 import com.liniopay.android.tokenizer.util.LuhnChecker;
-import com.liniopay.android.tokenizer.util.VolleySingleton;
+import com.liniopay.android.tokenizer.util.TokenizerApiService;
 
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
 
 /**
  * Created by daniel on 7/17/17.
@@ -44,22 +42,21 @@ public class Tokenizer {
     /**
      * Tokenizer constructor.
      *
-     * @param apiKey API key retrieved from Linio Pay console
+     * @param apiKey   API key retrieved from Linio Pay console
      * @param listener Listener for the results of the API calls
      */
     public Tokenizer(String apiKey, Context context) {
-        if(context == null) {
+        if (context == null) {
             Log.e(TAG, "Context is null, can't construct class");
             throw new IllegalArgumentException("Null context not allowed");
-        }
-        else {
+        } else {
             this.context = context;
         }
 
         //validate arguments
         ValidationResult result = this.validateKey(apiKey);
 
-        if(!result.isValid()) {
+        if (!result.isValid()) {
             throw new IllegalArgumentException(result.getError().getMessage());
         }
 
@@ -68,7 +65,7 @@ public class Tokenizer {
     }
 
     public ValidationResult validateKey(String key) {
-        if(key == null || key.trim().isEmpty()) {
+        if (key == null || key.trim().isEmpty()) {
             return new ValidationResult(false, new Error(Constants.ERROR_CODE_REQUIRED_KEY,
                     Constants.ERROR_DOMAIN, Constants.ERROR_DESC_REQUIRED_KEY));
         }
@@ -80,10 +77,9 @@ public class Tokenizer {
         Log.d(TAG, "Validating key " + key);
 
         Matcher matcher = pattern.matcher(key);
-        if(matcher.matches()) {
+        if (matcher.matches()) {
             return new ValidationResult(true, null);
-        }
-        else {
+        } else {
             return new ValidationResult(false, new Error(Constants.ERROR_CODE_INVALID_KEY,
                     Constants.ERROR_DOMAIN, Constants.ERROR_DESC_INVALID_KEY));
         }
@@ -92,7 +88,7 @@ public class Tokenizer {
     public ValidationResult validateName(String name, Constants.NameType nameType) {
         String nameErrorType = null;
 
-        switch(nameType) {
+        switch (nameType) {
             case CreditCardHolderName:
                 nameErrorType = Constants.ERROR_DESC_REQUIRED_NAME;
                 break;
@@ -104,17 +100,17 @@ public class Tokenizer {
                 break;
         }
 
-        if(name == null || name.trim().isEmpty()) {
+        if (name == null || name.trim().isEmpty()) {
             return new ValidationResult(false, new Error(Constants.ERROR_CODE_REQUIRED_NAME,
                     Constants.ERROR_DOMAIN, nameErrorType));
         }
 
-        if(name.length() < Constants.MIN_CHAR_NAME) {
+        if (name.length() < Constants.MIN_CHAR_NAME) {
             return new ValidationResult(false, new Error(Constants.ERROR_CODE_CHAR_MIN_LIMIT_NAME,
                     Constants.ERROR_DOMAIN, String.format(Constants.ERROR_DESC_CHAR_MIN_LIMIT_NAME, Constants.MIN_CHAR_NAME)));
         }
 
-        if(name.length() > Constants.MAX_CHAR_NAME) {
+        if (name.length() > Constants.MAX_CHAR_NAME) {
             return new ValidationResult(false, new Error(Constants.ERROR_CODE_CHAR_MAX_LIMIT_NAME,
                     Constants.ERROR_DOMAIN, String.format(Constants.ERROR_DESC_CHAR_MAX_LIMIT_NAME, Constants.MAX_CHAR_NAME)));
         }
@@ -123,7 +119,7 @@ public class Tokenizer {
     }
 
     public ValidationResult validateCreditCardNumber(String cardNumber) {
-        if(cardNumber == null || cardNumber.trim().isEmpty()) {
+        if (cardNumber == null || cardNumber.trim().isEmpty()) {
             return new ValidationResult(false, new Error(Constants.ERROR_CODE_REQUIRED_CARD_NUMBER,
                     Constants.ERROR_DOMAIN, Constants.ERROR_DESC_REQUIRED_CARD_NUMBER));
         }
@@ -131,7 +127,7 @@ public class Tokenizer {
         //luhn check
         boolean valid = LuhnChecker.check(cardNumber);
 
-        if(!valid) {
+        if (!valid) {
             return new ValidationResult(false, new Error(Constants.ERROR_CODE_INVALID_CARD_NUMBER,
                     Constants.ERROR_DOMAIN, Constants.ERROR_DESC_INVALID_CARD_NUMBER));
         }
@@ -146,12 +142,12 @@ public class Tokenizer {
             String trimmedCCNumber = cardNumber.trim();
             int validCVCNumberLength = Constants.CHAR_LENGTH_CVC;
 
-            if(trimmedCCNumber.isEmpty()) {
+            if (trimmedCCNumber.isEmpty()) {
                 return new ValidationResult(false, new Error(Constants.ERROR_CODE_INVALID_CARD_NUMBER,
                         Constants.ERROR_DOMAIN, Constants.ERROR_DESC_INVALID_CARD_NUMBER));
             }
 
-            if(trimmedCVCNumber.isEmpty()) {
+            if (trimmedCVCNumber.isEmpty()) {
                 return new ValidationResult(false, new Error(Constants.ERROR_CODE_INVALID_CVC,
                         Constants.ERROR_DOMAIN, Constants.ERROR_DESC_INVALID_CVC));
             }
@@ -160,18 +156,17 @@ public class Tokenizer {
             String cardRegex = "^3[47]\\d+";
             Log.d(TAG, "Matching " + cardRegex + " against " + trimmedCCNumber);
 
-            if(Pattern.matches(cardRegex, trimmedCCNumber)) {
+            if (Pattern.matches(cardRegex, trimmedCCNumber)) {
                 validCVCNumberLength = Constants.CHAR_LENGTH_CVC_AMEX;
-            }
-            else {
+            } else {
                 Log.d(TAG, "Did not match");
             }
 
             // validate cvc
             String regex = String.format("\\d{%d}", validCVCNumberLength);
-            Log.d(TAG, "Validating with regex " + regex +  " number " + trimmedCVCNumber);
+            Log.d(TAG, "Validating with regex " + regex + " number " + trimmedCVCNumber);
 
-            if(!Pattern.matches(regex, trimmedCVCNumber)) {
+            if (!Pattern.matches(regex, trimmedCVCNumber)) {
                 return new ValidationResult(false, new Error(Constants.ERROR_CODE_INVALID_CVC,
                         Constants.ERROR_DOMAIN, Constants.ERROR_DESC_INVALID_CVC));
             }
@@ -181,12 +176,12 @@ public class Tokenizer {
     }
 
     public ValidationResult validateExpirationDate(String month, String year) {
-        if(month == null || month.trim().isEmpty()) {
+        if (month == null || month.trim().isEmpty()) {
             return new ValidationResult(false, new Error(Constants.ERROR_CODE_REQUIRED_MONTH,
                     Constants.ERROR_DOMAIN, Constants.ERROR_DESC_REQUIRED_MONTH));
         }
 
-        if(year == null || year.trim().isEmpty()) {
+        if (year == null || year.trim().isEmpty()) {
             return new ValidationResult(false, new Error(Constants.ERROR_CODE_REQUIRED_YEAR,
                     Constants.ERROR_DOMAIN, Constants.ERROR_DESC_REQUIRED_YEAR));
         }
@@ -194,12 +189,12 @@ public class Tokenizer {
         month = month.trim();
         year = year.trim();
 
-        if(!Pattern.matches("^\\d{1,2}$", month)) {
+        if (!Pattern.matches("^\\d{1,2}$", month)) {
             return new ValidationResult(false, new Error(Constants.ERROR_CODE_INVALID_MONTH,
                     Constants.ERROR_DOMAIN, Constants.ERROR_DESC_INVALID_MONTH + ": (" + month + ")"));
         }
 
-        if(!Pattern.matches("^\\d{4}$", year)) {
+        if (!Pattern.matches("^\\d{4}$", year)) {
             return new ValidationResult(false, new Error(Constants.ERROR_CODE_INVALID_YEAR,
                     Constants.ERROR_DOMAIN, Constants.ERROR_DESC_INVALID_YEAR + ": (" + year + ")"));
         }
@@ -212,18 +207,17 @@ public class Tokenizer {
             int dayOfMonth = Calendar.getInstance().get(Calendar.DAY_OF_MONTH);
             int todayMonth = Calendar.getInstance().get(Calendar.MONTH) + 1; //this crap is 0-based
             int todayYear = Calendar.getInstance().get(Calendar.YEAR);
-            Date expiration = simpleDateFormat.parse(dayOfMonth + "-" + month + "-" + year);
+            Date expiration = simpleDateFormat.parse(getValidDayOfMonth(dayOfMonth, month, year) + "-" + month + "-" + year);
             Date todayAtMidnight = simpleDateFormat.parse(dayOfMonth + "-" + todayMonth + "-" + todayYear);
 
             Log.d(TAG, "expiration is " + expiration + ", today is " + todayAtMidnight);
 
-            if(expiration.before(todayAtMidnight)) {
+            if (expiration.before(todayAtMidnight)) {
                 Log.e(TAG, "Date " + expiration + " is before " + todayAtMidnight);
                 return new ValidationResult(false, new Error(Constants.ERROR_CODE_INVALID_EXPIRATION,
                         Constants.ERROR_DOMAIN, Constants.ERROR_DESC_INVALID_EXPIRATION));
             }
-        }
-        catch(ParseException e) {
+        } catch (ParseException e) {
             Log.e(TAG, e.getLocalizedMessage());
             return new ValidationResult(false, new Error(Constants.ERROR_CODE_INVALID_EXPIRATION,
                     Constants.ERROR_DOMAIN, Constants.ERROR_DESC_INVALID_EXPIRATION));
@@ -232,15 +226,41 @@ public class Tokenizer {
         return new ValidationResult(true, null);
     }
 
+    // This function validates if the current day is greater than the maximum day for card
+    // expiration month. If it's greater the current day, returns the last day of the expiration
+    // month, otherwise, returns the current day
+    private int getValidDayOfMonth(int day, String month, String year) {
+        int lastDay;
+        try {
+            Calendar cal = Calendar.getInstance();
+            cal.set(Calendar.YEAR, Integer.parseInt(year));
+            cal.set(Calendar.MONTH, Integer.parseInt(month) - 1); //this crap is 0-based
+            cal.set(Calendar.DAY_OF_MONTH, 1);
+            // Get the last day of expiry month
+            lastDay = cal.getActualMaximum(Calendar.DAY_OF_MONTH);
+            // If is greater than "day" returns the last day of month
+            if (day > lastDay) {
+                day = lastDay;
+            }
+        } catch (Exception e) {
+            Log.e(TAG, e.getLocalizedMessage() == null ? "Unknown error" : e.getLocalizedMessage());
+            // If has some error returns 28
+            if (day > 28) {
+                day = 28;
+            }
+        }
+        return day;
+    }
+
     public ValidationResult validateAddressStreet1(String street1) {
-        if(street1 == null || street1.trim().isEmpty()) {
+        if (street1 == null || street1.trim().isEmpty()) {
             return new ValidationResult(false, new Error(Constants.ERROR_CODE_REQUIRED_STREET_1,
                     Constants.ERROR_DOMAIN, Constants.ERROR_DESC_REQUIRED_STREET_1));
         }
 
         String trimmedStreet1 = street1.trim();
 
-        if(trimmedStreet1.length() > Constants.MAX_CHAR_STREET_1) {
+        if (trimmedStreet1.length() > Constants.MAX_CHAR_STREET_1) {
             return new ValidationResult(false, new Error(Constants.ERROR_CODE_CHAR_MAX_LIMIT_STREET_1,
                     Constants.ERROR_DOMAIN, Constants.ERROR_DESC_CHAR_MAX_LIMIT_STREET_1));
         }
@@ -250,12 +270,12 @@ public class Tokenizer {
 
     public ValidationResult validateOptionalAddressLine(String addressLine, Constants.AddressLineType lineType) {
         // field is optional
-        if(addressLine != null && !addressLine.trim().isEmpty()) {
+        if (addressLine != null && !addressLine.trim().isEmpty()) {
             int maxCharacters = 0;
             int errorCode = 0;
             String errorString = "";
 
-            switch(lineType) {
+            switch (lineType) {
                 case AddressStreet2:
                     maxCharacters = Constants.MAX_CHAR_STREET_2;
                     errorCode = Constants.ERROR_CODE_CHAR_MAX_LIMIT_STREET_2;
@@ -287,12 +307,12 @@ public class Tokenizer {
     }
 
     public ValidationResult validateAddressCity(String city) {
-        if(city == null || city.trim().isEmpty()) {
+        if (city == null || city.trim().isEmpty()) {
             return new ValidationResult(false, new Error(Constants.ERROR_CODE_REQUIRED_CITY,
                     Constants.ERROR_DOMAIN, Constants.ERROR_DESC_REQUIRED_CITY));
         }
 
-        if(city.length() > Constants.MAX_CHAR_CITY) {
+        if (city.length() > Constants.MAX_CHAR_CITY) {
             return new ValidationResult(false, new Error(Constants.ERROR_CODE_CHAR_MAX_LIMIT_CITY,
                     Constants.ERROR_DOMAIN, String.format(Constants.ERROR_DESC_CHAR_MAX_LIMIT_CITY, Constants.MAX_CHAR_CITY)));
         }
@@ -301,12 +321,12 @@ public class Tokenizer {
     }
 
     public ValidationResult validateAddressState(String state) {
-        if(state == null || state.trim().isEmpty()) {
+        if (state == null || state.trim().isEmpty()) {
             return new ValidationResult(false, new Error(Constants.ERROR_CODE_REQUIRED_STATE,
                     Constants.ERROR_DOMAIN, Constants.ERROR_DESC_REQUIRED_STATE));
         }
 
-        if(state.length() > Constants.MAX_CHAR_STATE) {
+        if (state.length() > Constants.MAX_CHAR_STATE) {
             return new ValidationResult(false, new Error(Constants.ERROR_CODE_CHAR_MAX_LIMIT_STATE,
                     Constants.ERROR_DOMAIN, String.format(Constants.ERROR_DESC_CHAR_MAX_LIMIT_STATE, Constants.MAX_CHAR_STATE)));
         }
@@ -315,12 +335,12 @@ public class Tokenizer {
     }
 
     public ValidationResult validateAddressCountry(String country) {
-        if(country == null || country.trim().isEmpty()) {
+        if (country == null || country.trim().isEmpty()) {
             return new ValidationResult(false, new Error(Constants.ERROR_CODE_REQUIRED_COUNTRY,
                     Constants.ERROR_DOMAIN, Constants.ERROR_DESC_REQUIRED_COUNTRY));
         }
 
-        if(!Pattern.matches(String.format("^[\\sA-Za-z]{%d}$", Constants.CHAR_LENGTH_COUNTRY), country)) {
+        if (!Pattern.matches(String.format("^[\\sA-Za-z]{%d}$", Constants.CHAR_LENGTH_COUNTRY), country)) {
             return new ValidationResult(false, new Error(Constants.ERROR_CODE_INVALID_COUNTRY,
                     Constants.ERROR_DOMAIN, Constants.ERROR_DESC_INVALID_COUNTRY));
         }
@@ -329,20 +349,20 @@ public class Tokenizer {
     }
 
     public ValidationResult validateAddressPostalCode(String postalCode) {
-        if(postalCode == null || postalCode.trim().isEmpty()) {
+        if (postalCode == null || postalCode.trim().isEmpty()) {
             return new ValidationResult(false, new Error(Constants.ERROR_CODE_REQUIRED_POSTAL_CODE,
                     Constants.ERROR_DOMAIN, Constants.ERROR_DESC_REQUIRED_POSTAL_CODE));
         }
 
         String trimmedPostalCode = postalCode.trim();
 
-        if(trimmedPostalCode.length() > Constants.MAX_CHAR_POSTAL_CODE) {
+        if (trimmedPostalCode.length() > Constants.MAX_CHAR_POSTAL_CODE) {
             return new ValidationResult(false, new Error(Constants.ERROR_CODE_CHAR_MAX_LIMIT_POSTAL_CODE,
                     Constants.ERROR_DOMAIN, String.format(Constants.ERROR_DESC_CHAR_MAX_LIMIT_POSTAL_CODE,
                     Constants.MAX_CHAR_POSTAL_CODE)));
         }
 
-        if(!Pattern.matches("^\\d+$", postalCode)) {
+        if (!Pattern.matches("^\\d+$", postalCode)) {
             return new ValidationResult(false, new Error(Constants.ERROR_CODE_INVALID_POSTAL_CODE,
                     Constants.ERROR_DOMAIN, Constants.ERROR_DESC_INVALID_POSTAL_CODE));
         }
@@ -351,7 +371,7 @@ public class Tokenizer {
     }
 
     public ValidationResult validateEmail(String email) {
-        if(email != null && !email.trim().isEmpty()) {
+        if (email != null && !email.trim().isEmpty()) {
             if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
                 return new ValidationResult(false, new Error(Constants.ERROR_CODE_INVALID_EMAIL,
                         Constants.ERROR_DOMAIN, Constants.ERROR_DESC_INVALID_EMAIL));
@@ -362,7 +382,7 @@ public class Tokenizer {
     }
 
     public void requestToken(RequestData request, boolean oneTime, final APIResponseHandler responseHandler) {
-        if(request == null || request.getFormValues() == null) {
+        if (request == null || request.getFormValues() == null) {
             throw new IllegalArgumentException("Form values cannot be null");
         }
 
@@ -375,7 +395,7 @@ public class Tokenizer {
 
         // validate name
         result = this.validateName(formValues.get(Constants.FORM_DICT_KEY_NAME),
-                                    Constants.NameType.CreditCardHolderName);
+                Constants.NameType.CreditCardHolderName);
         addErrorMessageIfValidationFailed(result, errorArrayList);
 
         // validate credit card number
@@ -384,11 +404,11 @@ public class Tokenizer {
 
         // validate expiration date
         result = this.validateExpirationDate(formValues.get(Constants.FORM_DICT_KEY_MONTH),
-                                             formValues.get(Constants.FORM_DICT_KEY_YEAR));
+                formValues.get(Constants.FORM_DICT_KEY_YEAR));
         addErrorMessageIfValidationFailed(result, errorArrayList);
 
         // address is always optional so we check first
-        if(address != null) {
+        if (address != null) {
             // first name
             result = this.validateName(address.get(Constants.FORM_DICT_KEY_ADDRESS_FIRST_NAME), Constants.NameType.AddressFirstName);
             addErrorMessageIfValidationFailed(result, errorArrayList);
@@ -439,38 +459,54 @@ public class Tokenizer {
         }
 
         // if there are failed validations, notify handler and leave
-        if(!errorArrayList.isEmpty()) {
+        if (!errorArrayList.isEmpty()) {
             responseHandler.onValidationFailure(errorArrayList);
-        }
-        else {
-            // let's make the actual request
-            RequestQueue queue = VolleySingleton.getInstance(context).getRequestQueue();
-            JSONObject jsonObject = new JSONObject(APIRequestCreator.createAPIRequest(this.apiKey, request, oneTime));
+        } else {
+            // Let's make the actual request
+            // Create Retrofit
+            Retrofit retrofit = new Retrofit.Builder()
+                    .baseUrl(Constants.LPTS_API_PATH)
+                    .addConverterFactory(GsonConverterFactory.create())
+                    .build();
 
-            // contact the LinioPay endpoint
-            JsonObjectRequest req = new JsonObjectRequest(Constants.LPTS_API_PATH, jsonObject,
-                    new Response.Listener<JSONObject>() {
-                        @Override
-                        public void onResponse(JSONObject response) {
-                            String jsonBody = response.toString();
-                            HashMap<Object, Object> responseData = new Gson().fromJson(jsonBody, HashMap.class);
-                            responseHandler.onRequestSuccess(responseData);
-                        }
-                    }, new Response.ErrorListener() {
+            // Build request model
+            TokenRequestModel requestModel = APIRequestCreator.createAPIRequest(this.apiKey, request, oneTime);
+            // Create service
+            TokenizerApiService service = retrofit.create(TokenizerApiService.class);
+            Call<HashMap<Object, Object>> getToken = service.getToken(requestModel);
+            // Execute request
+            getToken.enqueue(new Callback<HashMap<Object, Object>>() {
                 @Override
-                public void onErrorResponse(VolleyError error) {
-                    Log.e(TAG, error.getMessage());
-                    responseHandler.onRequestFailure(new Exception(error.getMessage(), error.getCause()));
+                public void onResponse(Call<HashMap<Object, Object>> call, retrofit2.Response<HashMap<Object, Object>> response) {
+                    if (response.isSuccessful()) {
+                        responseHandler.onRequestSuccess(response.body());
+                    } else {
+                        String message = "Token can't be retrieved";
+                        try {
+                            Log.w("Tokenizer", response.errorBody().string().toString());
+                            JSONObject jsonObject = new JSONObject(response.errorBody().string());
+                            if (jsonObject != null && !jsonObject.optString("message", "").isEmpty()) {
+                                message = jsonObject.optString("message", "");
+                            }
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                        responseHandler.onRequestFailure(new Exception(message, new UnknownError()));
+                    }
+                }
+
+                @Override
+                public void onFailure(Call<HashMap<Object, Object>> call, Throwable t) {
+                    responseHandler.onRequestFailure(new Exception(t.getLocalizedMessage() == null ? "Unknown error" : t.getLocalizedMessage(), t));
                 }
             });
-
-            // Add the request to the RequestQueue.
-            queue.add(req);
         }
     }
 
     private void addErrorMessageIfValidationFailed(ValidationResult result, ArrayList<Error> errorList) {
-        if(!result.isValid()) {
+        if (!result.isValid()) {
             errorList.add(result.getError());
         }
     }

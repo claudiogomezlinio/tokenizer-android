@@ -41,7 +41,7 @@ public class Constants {
     public static final String FORM_DICT_KEY_EMAIL = "email";
 
     /* Internal constants of the SDK */
-    static final String LPTS_API_PATH = "https://vault.liniopay.com/token";
+    static final String LPTS_API_PATH = "https://vault.liniopay.com/";
     static final String ERROR_DOMAIN = "com.LinioPay.Tokenizer.ErrorDomain";
     static final int CHAR_LENGTH_KEY = 40;
     static final int CHAR_LENGTH_CVC = 3;
