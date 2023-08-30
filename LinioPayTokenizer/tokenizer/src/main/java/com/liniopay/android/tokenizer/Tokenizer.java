@@ -35,6 +35,8 @@ public class Tokenizer {
 
     public static final String TAG = Tokenizer.class.getSimpleName();
 
+    private static Boolean isStaging = false;
+
     /* Instance fields */
     private String apiKey = null;
     private Context context = null;
@@ -464,8 +466,12 @@ public class Tokenizer {
         } else {
             // Let's make the actual request
             // Create Retrofit
+            String baseUrl = Constants.LPTS_API_PATH;
+            if (isStaging) {
+                baseUrl = Constants.LPTS_API_PATH_STAGING;
+            }
             Retrofit retrofit = new Retrofit.Builder()
-                    .baseUrl(Constants.LPTS_API_PATH)
+                    .baseUrl(baseUrl)
                     .addConverterFactory(GsonConverterFactory.create())
                     .build();
 
@@ -509,5 +515,9 @@ public class Tokenizer {
         if (!result.isValid()) {
             errorList.add(result.getError());
         }
+    }
+
+    public static void setIsStaging(Boolean bool) {
+        isStaging = bool;
     }
 }

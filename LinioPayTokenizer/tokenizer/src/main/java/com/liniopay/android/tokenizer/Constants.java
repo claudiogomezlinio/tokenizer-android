@@ -42,6 +42,7 @@ public class Constants {
 
     /* Internal constants of the SDK */
     static final String LPTS_API_PATH = "https://vault.liniopay.com/";
+    static final String LPTS_API_PATH_STAGING = "https://vault-new.staging-liniopay.com/";
     static final String ERROR_DOMAIN = "com.LinioPay.Tokenizer.ErrorDomain";
     static final int CHAR_LENGTH_KEY = 40;
     static final int CHAR_LENGTH_CVC = 3;
